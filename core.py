@@ -18,7 +18,7 @@ class ftp(FTP):
 		return r.data 
 
 	def get_files(self):
-		return self.nlist()
+		return self.nlst()
 
 	def remove_file(self, filename):
 		original = filename 

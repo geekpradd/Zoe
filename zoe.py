@@ -1,12 +1,8 @@
 import os, sys
 from core import ftp
-from collections import defaultdict
-from subprocess import check_output
+from utils import check_output, is_git_directory, tupled
 import pickle 
 import getpass
-
-is_git_directory = '.git' in os.listdir(os.getcwd())
-tupled = lambda a: (a.split('\t')[1],a.split('\t')[0])
 
 class Config(object):
 	@property 
@@ -31,7 +27,7 @@ class Config(object):
 				self._commit = f.read()
 			return self._commit
 		except:
-			print("Initial Commit has not been made", file=sys.stderr)
+			return None
 
 	@commit.setter 
 	def commit(self, c):
@@ -42,10 +38,18 @@ class Config(object):
 CONFIG = Config()
 
 class Connection(ftp, Config):
-	def __init__(self):
-		print ("Initializing Connection to Server")
+	def __init__(self, list_files=False):
+		if not list_files:
+			if check_output(["git","rev-parse","--short", "HEAD"]).decode('utf-8') == CONFIG.commit:
+				print ("All changes in the latest commit are already pushed. Please commit your changes in git first.")
+				sys.exit(0)
+		if not list_files:
+			print ("Initializing Connection to Server")
+
 		super(Connection,self).__init__(self.configuration['host'],self.configuration['user'],self.configuration['passwd'])
-		print ("Connection Successful")
+		
+		if not list_files:
+			print ("Connection Successful")
 
 	def push_total(self):
 		files = check_output(["git", "ls-files"]).decode('utf-8').split('\n')[:-1:]
@@ -55,22 +59,19 @@ class Connection(ftp, Config):
 		if not '.zoe.commit' in os.listdir(os.getcwd()):
 			CONFIG.commit = check_output(["git","rev-parse","--short", "HEAD"]).decode('utf-8')
 			
-
 	def push_changed(self,dictionary):
-		if check_output(["git","rev-parse","--short", "HEAD"]).decode('utf-8') == CONFIG.commit:
-			print ("All changes in the latest commit are already pushed. Please commit your changes in git first.")
-			sys.exit(0)
+		
 		maps = {'A':self.write_file, 'M':self.write_file, 'D':self.remove_file}
 		for file in dictionary:
 			if dictionary[file]=="A":
-				print ("Adding ", end='')
+				print ("Adding and pushing ", end='')
 			elif dictionary[file]=="M":
-				print ("Modifying ", end='')
+				print ("Modifying and pushing ", end='')
 			elif dictionary[file]=="D":
-				print ("Deleting", end='')
+				print ("Deleting ", end='')
 			print (file)
 			maps[dictionary[file]](file)
-
+		CONFIG.commit = check_output(["git","rev-parse","--short", "HEAD"]).decode('utf-8')
 
 def generate_dict(output):
 	string = output.decode('utf-8').split('\n\n')[-1]
@@ -79,7 +80,7 @@ def generate_dict(output):
 
 def push(FORCE=False):
 	if not 'zoe.conf' in os.listdir(os.getcwd()):
-		main()
+		modify()
 	else:
 		output = check_output(["git", "show", "--name-status"])
 		con = Connection()
@@ -94,29 +95,50 @@ def push(FORCE=False):
 		else:
 			con.push_changed(generate_dict(output)) #Push files changed in latest commit 
 
+def modify():
+	print ("Enter Your Configuration Variables ")
+	host = input("Enter host IP: ")
+	user = input("Enter User Name (Leave blank for none): ")
+	passwd = getpass.getpass(prompt="Enter FTP Password (Leave blank for none): ")
+
+	dictionary = {"host": host, "user": user, "passwd": passwd}
+	CONFIG.configuration = dictionary
+
+def list_files():
+	if "server" in sys.argv:
+		print ("Please wait while Zoe fetches list of files from Remote Server. ")
+		con = Connection(list_files=True)
+		files = con.get_files()
+		print("Files in Remote FTP Server: ")
+		[print(f) for f in files]
+	else:
+		print ("Zoe has detected the following files added in git in this directory: ")
+		print (check_output(["git", "ls-files"]).decode('utf-8'))
+		print ("To list files in FTP Server, Enter zoe list server")
 def main():
 	if not is_git_directory:
 		print("Current directory is not a git directory", file=sys.stderr) 
 		sys.exit(1)
 
 	if not 'zoe.conf' in os.listdir(os.getcwd()):
-		print ("Enter Your Configuration Variables ")
-		host = input("Enter host IP: ")
-		user = input("Enter User Name (Leave blank for none): ")
-		passwd = getpass.getpass(prompt="Enter FTP Password (Leave blank for none): ")
-
-		dictionary = {"host": host, "user": user, "passwd": passwd}
-		CONFIG.configuration = dictionary
+		modify()
 	else:
 		dictionary = CONFIG.configuration
 		try:
+			print ("Zoe is testing connection with FTP server. Starting Connection.")
 			client = ftp(dictionary['host'], dictionary['user'], dictionary['passwd'])
 			print ("Connection Successful to FTP.. Everything is working fine")
 		except Exception as e:
-			print ("You have given incorrect password, username or host. Enter zoe --override to override your previous settings and fix your mistakes")
+			print ("You have given incorrect password, username or host. Enter zoe modify to override your previous settings and fix your mistakes")
 
 if __name__=='__main__':
 	if "push" in sys.argv:
 		push(FORCE='--force' in sys.argv)
-	else:
+	elif "modify" in sys.argv:
+		modify()
+	elif "list" in sys.argv:
+		list_files()
+	elif sys.argv[-1] == "zoe" or sys.argv[-1] == "zoe.py" :
 		main()
+	else:
+		print ("Zoe Error: Zoe does not have a {0} function".format(sys.argv[-1]))
