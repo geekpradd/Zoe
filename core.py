@@ -20,6 +20,20 @@ class ftp(FTP):
 	def get_files(self):
 		return self.nlist()
 
+	def remove_file(self, filename):
+		original = filename 
+		while '/' in filename:
+			folder, filename = filename.split('/')[0], filename.replace(filename.split('/')[0]+'/','')
+			if not folder in self.nlst():
+				self.mkd(folder)
+			self.cwd(folder)
+			if '/' in filename:
+				continue 
+			else:
+				self.delete(filename)
+				self.cwd('/')
+		if not '/' in original:
+			self.delete(filename)
 	def write_file(self,filename, newname=None):
 		original = filename 
 		while '/' in filename:
