@@ -4,7 +4,7 @@ from io import BytesIO
 class ftp(FTP):
 	def __init__(self,host, user='', passwd=''):
 
-		super(ftp,self).__init__(host, user, passwd) 
+		super(ftp,self).__init__(host) 
 		self.login(user=user, passwd=passwd)
 
 	def read_file(self, file):
