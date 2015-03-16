@@ -21,14 +21,30 @@ class ftp(FTP):
 		return self.nlist()
 
 	def write_file(self,filename, newname=None):
-		file = open(filename, 'rb')
-		if newname is None:
-			stor_str = "STOR {0}".format(filename)
-		else:
-			stor_str = "STOR {0}".format(newname)
+		original = filename 
+		while '/' in filename:
+			folder, filename = filename.split('/')[0], filename.replace(filename.split('/')[0]+'/','')
+			if not folder in self.nlst():
+				self.mkd(folder)
+			self.cwd(folder)
+			if '/' in filename:
+				continue 
+			else:
+				file = open(original, 'rb')
+				stor_str = "STOR {0}".format(filename)
+				self.storbinary(stor_str, file)
+				self.cwd('/')
+				file.close()
 
-		self.storbinary(stor_str, file)
-		file.close()
+		if not '/' in original:
+			file = open(filename, 'rb')
+			if newname is None:
+				stor_str = "STOR {0}".format(filename)
+			else:
+				stor_str = "STOR {0}".format(newname)
+
+			self.storbinary(stor_str, file)
+			file.close()
 
 if __name__ == '__main__':
 	a = ftp('127.0.0.1','geek','12345')
