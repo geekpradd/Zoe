@@ -8,9 +8,6 @@ import getpass
 is_git_directory = '.git' in os.listdir(os.getcwd())
 tupled = lambda a: (a.split('\t')[1],a.split('\t')[0])
 
-# class Connection(ftp):
-# 	def __init__(self):
-
 class Dictionary(object):
 	@property 
 	def configuration(self):
@@ -27,7 +24,18 @@ class Dictionary(object):
 			self._dictionary = pickle.dumps(dic)
 			f.write(self._dictionary)
 
-D = Dictionary()
+class Connection(ftp, Dictionary):
+	def __init__(self):
+		print ("Initializing Connection to Server")
+		super(Connection,self).__init__(self.configuration['host'],self.configuration['user'],self.configuration['passwd'])
+		print ("Connection Successful")
+
+	def push(self):
+		files = check_output(["git", "ls-files"]).decode('utf-8').split('\n')[:-1:]
+		for f in files:
+			print ("Pushing {0} to FTP Host {1}".format(f,self.configuration['host']))
+			self.write_file(f)
+
 
 def generate_dict(output):
 	string = output.decode('utf-8').split('\n\n')[-1]
@@ -39,9 +47,11 @@ def push():
 		main()
 	else:
 		output = check_output(["git", "show", "--name-status"])
-		print(generate_dict(output))
+		con = Connection()
+		con.push()
 
 def main():
+	D = Dictionary()
 	if not is_git_directory:
 		print("Current directory is not a git directory", file=sys.stderr) 
 		sys.exit(1)
