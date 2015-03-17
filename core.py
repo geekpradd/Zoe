@@ -1,6 +1,5 @@
 from ftplib import FTP 
-from io import BytesIO
-
+ 
 class ftp(FTP):
 	def __init__(self,host, user='', passwd=''):
 
@@ -17,8 +16,10 @@ class ftp(FTP):
 		self.retrbinary('RETR ' + file, r)
 		return r.data 
 
-	def get_files(self):
-		return self.nlst()
+	def get_files(self, dir=None):
+		if dir is None:
+			return self.nlst()
+		return self.nlst(dir)
 
 	def remove_file(self, filename):
 		original = filename 

@@ -1,6 +1,7 @@
-import os, sys
+import os
+import sys
 from core import ftp
-from utils import check_output, is_git_directory, tupled
+from utils import check_output, is_git_directory, tupled, is_folder
 import pickle 
 import getpass
 
@@ -38,13 +39,13 @@ class Config(object):
 CONFIG = Config()
 
 class Connection(ftp, Config):
-	def __init__(self, list_files=False):
-		if not list_files:
+	def __init__(self, list_files=False,pull=False):
+		if not list_files and not pull:
 			if check_output(["git","rev-parse","--short", "HEAD"]).decode('utf-8') == CONFIG.commit:
 				print ("All changes in the latest commit are already pushed. Please commit your changes in git first.")
 				sys.exit(0)
 		if not list_files:
-			print ("Initializing Connection to Server")
+			print ("Connecting to Server")
 
 		super(Connection,self).__init__(self.configuration['host'],self.configuration['user'],self.configuration['passwd'])
 		
@@ -95,6 +96,26 @@ def push(FORCE=False):
 		else:
 			con.push_changed(generate_dict(output)) #Push files changed in latest commit 
 
+#Some bugs are left here.. Especially folder retrieval
+def pull():
+	if not 'zoe.conf' in os.listdir(os.getcwd()):
+		modify()
+	else:
+		con = Connection(pull=True)
+		print ("Retrieving list of files from server..")
+		files = con.get_files() 
+		write(files, con)
+		print ("Pull from Server successful")
+
+def write(files, con):
+	for file in files:
+			print ("Downloading and writing {0}".format(file))
+			if is_folder(file):
+				write(con.get_files(file),con)
+			else:
+				with open(file, 'wb') as f:
+					f.write(con.read_file(file))
+
 def modify():
 	print ("Enter Your Configuration Variables ")
 	host = input("Enter host IP: ")
@@ -115,11 +136,8 @@ def list_files():
 		print ("Zoe has detected the following files added in git in this directory: ")
 		print (check_output(["git", "ls-files"]).decode('utf-8'))
 		print ("To list files in FTP Server, Enter zoe list server")
-def main():
-	if not is_git_directory:
-		print("Current directory is not a git directory", file=sys.stderr) 
-		sys.exit(1)
 
+def main():
 	if not 'zoe.conf' in os.listdir(os.getcwd()):
 		modify()
 	else:
@@ -132,8 +150,13 @@ def main():
 			print ("You have given incorrect password, username or host. Enter zoe modify to override your previous settings and fix your mistakes")
 
 if __name__=='__main__':
+	if not is_git_directory:
+		print("Current directory is not a git directory", file=sys.stderr) 
+		sys.exit(1)
 	if "push" in sys.argv:
 		push(FORCE='--force' in sys.argv)
+	elif "pull" in sys.argv:
+		pull()
 	elif "modify" in sys.argv:
 		modify()
 	elif "list" in sys.argv:
