@@ -18,8 +18,10 @@ class ftp(FTP):
 
 	def get_files(self, dir=None):
 		if dir is None:
-			return self.nlst()
-		return self.nlst(dir)
+			folders = self.get_folders()
+			return [x for x in self.nlst() if not x in folders]
+		folders = self.get_folders(dir)
+		return [x for x in self.nlst(dir) if not x in folders]
 	def get_folders(self,dir=None):
 		ret = []
 		def parse(line):

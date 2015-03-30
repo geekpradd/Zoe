@@ -122,6 +122,7 @@ def pull():
 		# con.test()
 
 def write(files, con, folder=False):
+	print (files)
 	for file in files:
 			print ("Downloading and writing {0}".format(file))
 			if folder:
