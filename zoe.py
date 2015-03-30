@@ -1,9 +1,13 @@
+from __future__ import print_function
 import os
 import sys
 from core import ftp
 from utils import check_output, is_git_directory, tupled, is_folder
+from functools import partial 
 import pickle 
 import getpass
+
+error = partial(print,file=sys.stderr)
 
 class Config(object):
 	@property 
@@ -13,7 +17,7 @@ class Config(object):
 				self._dictionary = pickle.loads(f.read())
 			return self._dictionary
 		except:
-			print("Configuration files have not been set", file=sys.stderr)
+			error("Configuration files have not been set")
 
 	@configuration.setter 
 	def configuration(self, dic):
@@ -39,17 +43,17 @@ class Config(object):
 CONFIG = Config()
 
 class Connection(ftp, Config):
-	def __init__(self, list_files=False,pull=False):
-		if not list_files and not pull:
+	def __init__(self, check=True, debug=True):
+		if check:
 			if check_output(["git","rev-parse","--short", "HEAD"]).decode('utf-8') == CONFIG.commit:
 				print ("All changes in the latest commit are already pushed. Please commit your changes in git first.")
 				sys.exit(0)
-		if not list_files:
+		if debug:
 			print ("Connecting to Server")
 
 		super(Connection,self).__init__(self.configuration['host'],self.configuration['user'],self.configuration['passwd'])
 		
-		if not list_files:
+		if debug:
 			print ("Connection Successful")
 
 	def push_total(self):
@@ -73,7 +77,9 @@ class Connection(ftp, Config):
 			print (file)
 			maps[dictionary[file]](file)
 		CONFIG.commit = check_output(["git","rev-parse","--short", "HEAD"]).decode('utf-8')
-
+	def test(self):
+		print (self.get_files())
+		print (self.get_folders())
 def generate_dict(output):
 	string = output.decode('utf-8').split('\n\n')[-1]
 	tuples_list =  [tupled(a) for a in string.split('\n')[:-1:]]
@@ -84,7 +90,7 @@ def push(FORCE=False):
 		modify()
 	else:
 		output = check_output(["git", "show", "--name-status"])
-		con = Connection()
+		con = Connection(check= not FORCE)
 
 		if FORCE:
 			print ("Pushing all files added in git by force.")
@@ -101,16 +107,24 @@ def pull():
 	if not 'zoe.conf' in os.listdir(os.getcwd()):
 		modify()
 	else:
-		con = Connection(pull=True)
+		con = Connection(check=False)
 		print ("Retrieving list of files from server..")
-		files = con.get_files() 
+		temp = con.get_files()
+		folders = con.get_folders()
+		files = [x for x in temp if not x in folders]
 		write(files, con)
+		write(folders,con,True)
+		
+		# files = con.get_files() 
+		# print (files)
+		# # write(files, con)
 		print ("Pull from Server successful")
+		# con.test()
 
-def write(files, con):
+def write(files, con, folder=False):
 	for file in files:
 			print ("Downloading and writing {0}".format(file))
-			if is_folder(file):
+			if folder:
 				write(con.get_files(file),con)
 			else:
 				with open(file, 'wb') as f:
@@ -128,7 +142,7 @@ def modify():
 def list_files():
 	if "server" in sys.argv:
 		print ("Please wait while Zoe fetches list of files from Remote Server. ")
-		con = Connection(list_files=True)
+		con = Connection(check=False, debug=False)
 		files = con.get_files()
 		print("Files in Remote FTP Server: ")
 		[print(f) for f in files]
@@ -151,7 +165,7 @@ def main():
 
 if __name__=='__main__':
 	if not is_git_directory:
-		print("Current directory is not a git directory", file=sys.stderr) 
+		error("Current directory is not a git directory") 
 		sys.exit(1)
 	if "push" in sys.argv:
 		push(FORCE='--force' in sys.argv)

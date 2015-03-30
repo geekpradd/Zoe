@@ -20,7 +20,16 @@ class ftp(FTP):
 		if dir is None:
 			return self.nlst()
 		return self.nlst(dir)
-
+	def get_folders(self,dir=None):
+		ret = []
+		def parse(line):
+			    if line[0] == 'd':
+			        ret.append(line.rpartition(' ')[2])   # gives you the name of a directory
+		if dir is not None:
+			self.cwd(dir)
+		self.dir(parse)
+		self.cwd('/')
+		return ret
 	def remove_file(self, filename):
 		original = filename 
 		while '/' in filename:
