@@ -1,5 +1,5 @@
 from ftplib import FTP 
- 
+
 class ftp(FTP):
 	def __init__(self,host, user='', passwd=''):
 
@@ -17,11 +17,17 @@ class ftp(FTP):
 		return r.data 
 
 	def get_files(self, dir=None):
+		print (self.pwd(),dir)
 		if dir is None:
 			folders = self.get_folders()
 			return [x for x in self.nlst() if not x in folders]
-		folders = self.get_folders(dir)
-		return [x for x in self.nlst(dir) if not x in folders]
+
+		
+		folders = [dir+'/'+x for x in self.get_folders(dir)]
+		try:
+			return [x for x in self.nlst(self.pwd()+'/'+dir) if not x in folders]
+		except:
+			return [x for x in self.nlst() if not x in folders]
 	def get_folders(self,dir=None):
 		ret = []
 		def parse(line):

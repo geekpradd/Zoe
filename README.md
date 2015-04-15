@@ -24,13 +24,6 @@ If not, then Zoe will only sync changed files in the latest commit.
 
 In order to sync or push files, you need to make a new commit. Otherwise Zoe will not comply and will leave a warning. 
 
-To pull changes from FTP server,
-
-```
-zoe pull
-```
-
-This function is currently incomplete (under development) as it has some errors with folder handling 
 
 To list files,
 
@@ -59,6 +52,10 @@ zoe push --force
 ```
 
 This is useful, incase you rollbacked to a previous commit in git.
+
+###Development Status
+
+Development has been slow, with issues regarding the Pull function. The core release is supposed to be online by May 2015.
 
 ###To-Do
 

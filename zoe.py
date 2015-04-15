@@ -102,31 +102,23 @@ def push(FORCE=False):
 		else:
 			con.push_changed(generate_dict(output)) #Push files changed in latest commit 
 
-#Some bugs are left here.. Especially folder retrieval
-def pull():
-	if not 'zoe.conf' in os.listdir(os.getcwd()):
-		modify()
-	else:
-		con = Connection(check=False)
-		print ("Retrieving list of files from server..")
-		temp = con.get_files()
-		folders = con.get_folders()
-		files = [x for x in temp if not x in folders]
-		write(files, con)
-		write(folders,con,True)
-		
-		# files = con.get_files() 
-		# print (files)
-		# # write(files, con)
-		print ("Pull from Server successful")
-		# con.test()
 
 def write(files, con, folder=False):
 	print (files)
 	for file in files:
 			print ("Downloading and writing {0}".format(file))
 			if folder:
-				write(con.get_files(file),con)
+				if not os.path.exists(folder):
+					os.makedirs(folder)
+
+				files = con.get_files(file)
+				print (files)
+				folders = con.get_folders(file)
+				print ("I am at " + file)
+				con.cwd(file)
+				write(files,con)
+				write(folders,con,True)
+
 			else:
 				with open(file, 'wb') as f:
 					f.write(con.read_file(file))
